@@ -1,7 +1,7 @@
 use crate::nom_prelude::*;
 use derive_deref::{Deref, DerefMut};
 
-#[derive(Debug, Clone, Deref, DerefMut)]
+#[derive(Debug, Clone, Deref, DerefMut, PartialEq, Eq)]
 pub struct Ident(pub String);
 
 impl Ident {
@@ -16,7 +16,13 @@ impl Ident {
     }
 }
 
-#[derive(Debug, Clone)]
+impl From<&str> for Ident {
+    fn from(value: &str) -> Self {
+        Ident(value.to_string())
+    }
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Ty {
     name: Ident,
     params: Vec<Ty>,
@@ -34,4 +40,28 @@ impl Ty {
         ));
         map(parser, |(name, params)| Ty { name, params })(s)
     }
+}
+
+#[test]
+fn test_ty() {
+    fn parser<'a>(s: &'a str) -> IResult<&'a str, Vec<&'a str>> {
+        delimited(
+            tag("<"),
+            separated_list0(ws0_then(tag(",")), ws0_then(tag("asdf"))),
+            tag(">"),
+        )(s)
+    }
+
+    let ident = Ident("f32".to_string());
+    assert_eq!(Ident::parse("f32>"), Ok((">", ident)));
+    assert_eq!(parser("<asdf>"), Ok(("", vec!["asdf"])));
+
+    let ty: Ty = Ty {
+        name: "vec4".into(),
+        params: vec![Ty {
+            name: "u32".into(),
+            params: vec![],
+        }],
+    };
+    assert_eq!(Ty::parse("vec4<u32>"), Ok(("", ty)));
 }
