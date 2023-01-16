@@ -1,0 +1,22 @@
+[package]
+name = "shader-lang-spec-lib"
+version = "0.1.0"
+authors = ["RayMarch <RayMarch@users.noreply.github.com>"]
+edition = "2021"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+[lib]
+name = "shader_lang_spec_lib"
+path = "src/lib.rs"
+
+[dependencies]
+num = "0.4.0"
+thiserror = "1.0.37"
+ureq = "2.6.1"
+scraper = "0.14.0"
+prettytable-rs = "0.10.0"
+ego-tree = "0.6.2"
+regex = "1.7.1"
+lazy_static = "1.4.0"
+derive_deref = "1.1.1"
+nom = "7.1.2"
