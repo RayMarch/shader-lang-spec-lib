@@ -1,8 +1,8 @@
 use crate::nom_prelude::*;
 use derive_deref::{Deref, DerefMut};
 
-#[derive(Debug, Clone, Deref, DerefMut, PartialEq, Eq)]
-pub struct Ident(pub String);
+#[derive(Debug, Clone, Deref, PartialEq, Eq)]
+pub struct Ident(String);
 
 impl Ident {
     pub fn parse(s: &str) -> IResult<&str, Self> {
@@ -36,8 +36,8 @@ macro_rules! make_ty {
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Ty {
-    name: Ident,
-    params: Vec<Ty>,
+    pub name: Ident,
+    pub params: Vec<Ty>,
 }
 
 impl Ty {
@@ -54,6 +54,58 @@ impl Ty {
             name,
             params: params.unwrap_or_default(),
         })(s)
+    }
+
+    /// turns `None` to `void`, `Some(ty)` to `ty`
+    pub fn flatten(ty: Option<Ty>) -> Ty {
+        ty.unwrap_or(make_ty!(void))
+    }
+}
+
+macro_rules! make_fn {
+    (fn $name: ident ($($arg: ident: $arg_ty: ident),*) -> $out: ident) => {
+        make_fn!(fn $name ($($arg: make_ty!($arg_ty)),*) -> make_ty!($out))
+    };
+    (fn $name: ident ($($arg: ident: $arg_ty: expr),*) -> $out: expr) => {
+        FnDecl {
+            name: stringify!($name).into(),
+            args: vec![$((stringify!($arg).into(), $arg_ty)),*],
+            out: $out,
+        }
+    };
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct FnDecl {
+    // fn foo(a: vec3<f32>, b: vec4<f32>) -> vec3<f32>
+    pub name: Ident,
+    pub args: Vec<(Ident, Ty)>,
+    pub out: Ty,
+}
+
+impl FnDecl {
+    pub fn parse(s: &str) -> IResult<&str, Self> {
+        let parser = tuple((
+            preceded(ws0_then(tag("fn")), ws1_then(Ident::parse)),
+            ws0_then(delimited(
+                ws0_then(tag("(")),
+                ws0_then(separated_list0(
+                    ws0_then(tag(",")),
+                    separated_pair(
+                        ws0_then(Ident::parse),
+                        ws0_then(tag(":")),
+                        ws0_then(Ty::parse),
+                    ),
+                )),
+                ws0_then(tag(")")),
+            )),
+            map(
+                opt(preceded(ws0_then(tag("->")), ws0_then(Ty::parse))),
+                Ty::flatten,
+            ),
+        ));
+
+        map(parser, |(name, args, out)| FnDecl { name, args, out })(s)
     }
 }
 
@@ -102,5 +154,11 @@ mod tests {
 
         let ty = make_ty!(vec4<make_ty!(vec3<f32>),>);
         assert_eq!(Ty::parse("vec4<vec3<f32>>"), Ok(("", ty)));
+    }
+
+    #[test]
+    fn test_fn_decl() {
+        let decl = make_fn!(fn foo(a: x, b: y) -> void);
+        assert_eq!(FnDecl::parse("fn foo(a: x, b: y)"), Ok(("", decl)));
     }
 }

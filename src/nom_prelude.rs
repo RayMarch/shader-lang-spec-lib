@@ -27,6 +27,16 @@ pub fn ws0(s: &str) -> IResult<&str, &str> {
     take_while(char::is_whitespace)(s)
 }
 
+pub fn ws1_then<'a, O, F>(mut f: F) -> impl FnMut(&'a str) -> IResult<&str, O, error::Error<&str>>
+where
+    F: Parser<&'a str, O, error::Error<&'a str>>,
+{
+    move |input: &str| {
+        let (input, _) = ws1.parse(input)?;
+        f.parse(input).map(|(i, o)| (i, o))
+    }
+}
+
 pub fn ws0_then<'a, O, F>(mut f: F) -> impl FnMut(&'a str) -> IResult<&str, O, error::Error<&str>>
 where
     F: Parser<&'a str, O, error::Error<&'a str>>,
