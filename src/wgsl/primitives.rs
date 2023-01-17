@@ -5,8 +5,8 @@ use derive_deref::{Deref, DerefMut};
 pub struct Ident(String);
 
 impl Ident {
-    pub fn parse(s: &str) -> IResult<&str, Self> {
-        let parser = |s| -> IResult<&str, &str> {
+    pub fn parse(s: &str) -> NomResult<&str, Self> {
+        let parser = |s| -> NomResult<&str, &str> {
             recognize(pair(
                 alt((alpha1, tag("_"))),
                 many0(alt((alphanumeric1, tag("_")))),
@@ -41,7 +41,7 @@ pub struct Ty {
 }
 
 impl Ty {
-    pub fn parse(s: &str) -> IResult<&str, Ty> {
+    pub fn parse(s: &str) -> NomResult<&str, Ty> {
         let parser = tuple((
             Ident::parse,
             opt(delimited(
@@ -84,7 +84,7 @@ pub struct FnDecl {
 }
 
 impl FnDecl {
-    pub fn parse(s: &str) -> IResult<&str, Self> {
+    pub fn parse(s: &str) -> NomResult<&str, Self> {
         let parser = tuple((
             preceded(ws0_then(tag("fn")), ws1_then(Ident::parse)),
             ws0_then(delimited(
@@ -160,5 +160,17 @@ mod tests {
     fn test_fn_decl() {
         let decl = make_fn!(fn foo(a: x, b: y) -> void);
         assert_eq!(FnDecl::parse("fn foo(a: x, b: y)"), Ok(("", decl)));
+
+        let decl = make_fn!(fn foo(a: x, b: y) -> f32);
+        assert_eq!(FnDecl::parse("fn foo(a: x, b: y) -> f32"), Ok(("", decl)));
+
+        let decl = make_fn!(fn foo() -> f32);
+        assert_eq!(FnDecl::parse("fn foo() -> f32"), Ok(("", decl)));
+
+        let decl = make_fn!(fn foo() -> void);
+        assert_eq!(FnDecl::parse("fn foo()"), Ok(("", decl)));
+
+        let decl = make_fn!(fn foo() -> void);
+        assert!(FnDecl::parse("fn ()").is_err());
     }
 }

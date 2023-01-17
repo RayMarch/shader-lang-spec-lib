@@ -1,7 +1,8 @@
 use nom::IResult;
 use std::error::Error;
 
-mod primitives;
+pub mod parametrization;
+pub mod primitives;
 
 pub struct WgslSpec {}
 
