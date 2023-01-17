@@ -2,6 +2,7 @@ pub use nom::branch::alt;
 pub use nom::bytes::complete::{tag, take_while, take_while1};
 pub use nom::character::complete::{alpha1, alphanumeric1, digit1, newline};
 pub use nom::combinator::map;
+pub use nom::combinator::opt;
 pub use nom::error::*;
 pub use nom::multi::many0;
 pub use nom::multi::separated_list0;

@@ -22,6 +22,18 @@ impl From<&str> for Ident {
     }
 }
 
+macro_rules! make_ty {
+    ($name: ident) => {
+        Ty { name: stringify!($name).into(), params: vec![], }
+    };
+    ($name: ident <$($param: ident),*>) => {
+        Ty { name: stringify!($name).into(), params: vec![$(make_ty!($param)),*],}
+    };
+    ($name: ident <$($ty: expr,)*>) => {
+        Ty { name: stringify!($name).into(), params: vec![$($ty),*],}
+    };
+}
+
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Ty {
     name: Ident,
@@ -32,36 +44,33 @@ impl Ty {
     pub fn parse(s: &str) -> IResult<&str, Ty> {
         let parser = tuple((
             Ident::parse,
-            delimited(
+            opt(delimited(
                 ws0_then(tag("<")),
                 ws0_then(separated_list0(ws0_then(tag(",")), ws0_then(Ty::parse))),
                 ws0_then(tag(">")),
-            ),
+            )),
         ));
-        map(parser, |(name, params)| Ty { name, params })(s)
+        map(parser, |(name, params)| Ty {
+            name,
+            params: params.unwrap_or_default(),
+        })(s)
     }
 }
 
 #[test]
 fn test_ty() {
-    fn parser<'a>(s: &'a str) -> IResult<&'a str, Vec<&'a str>> {
-        delimited(
-            tag("<"),
-            separated_list0(ws0_then(tag(",")), ws0_then(tag("asdf"))),
-            tag(">"),
-        )(s)
-    }
+    let ty = make_ty!(f32);
+    assert_eq!(Ty::parse("f32"), Ok(("", ty)));
 
-    let ident = Ident("f32".to_string());
-    assert_eq!(Ident::parse("f32>"), Ok((">", ident)));
-    assert_eq!(parser("<asdf>"), Ok(("", vec!["asdf"])));
+    let ty = make_ty!(vec4<f32>);
+    assert_eq!(Ty::parse("vec4<f32>"), Ok(("", ty)));
 
-    let ty: Ty = Ty {
-        name: "vec4".into(),
-        params: vec![Ty {
-            name: "u32".into(),
-            params: vec![],
-        }],
-    };
-    assert_eq!(Ty::parse("vec4<u32>"), Ok(("", ty)));
+    let ty = make_ty!(vec4<A, B, C, D>);
+    assert_eq!(Ty::parse("vec4<A, B, C, D>"), Ok(("", ty)));
+
+    let ty = make_ty!(vec4<A, B, C, D>);
+    assert_eq!(Ty::parse("vec4  < A,B, C, D  >"), Ok(("", ty)));
+
+    let ty = make_ty!(vec4<make_ty!(vec3<f32>),>);
+    assert_eq!(Ty::parse("vec4<vec3<f32>>"), Ok(("", ty)));
 }
