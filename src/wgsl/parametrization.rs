@@ -4,16 +4,23 @@ use super::primitives::*;
 use crate::{fn_name, nom_prelude::*};
 
 pub fn parse_generic_arg(s: &str) -> NomResult<&str, Ident> {
+    let ident = || {
+        alt((
+            delimited(tag("|"), cut(ws0_then(Ident::parse)), tag("|")),
+            ws0_then(Ident::parse),
+        ))
+    };
+
     context(
         fn_name!(),
-        delimited(
-            ws0_then(tag("<var ignore>")),
-            cut(ws0_then(alt((
-                delimited(tag("|"), ws0_then(Ident::parse), tag("|")),
-                ws0_then(Ident::parse),
-            )))),
-            ws0_then(tag("</var>")),
-        ),
+        alt((
+            delimited(
+                ws0_then(tag("<var ignore>")),
+                cut(ws0_then(ident())),
+                ws0_then(tag("</var>")),
+            ),
+            ws0_then(ident()),
+        )),
     )(s)
 }
 
@@ -197,6 +204,16 @@ mod tests {
 
     #[test]
     fn test_overload_row() {
+        let str = "|F| is a [=texel format=]<br>
+        <var ignore>C</var> is [=i32=], or [=u32=]<br>
+        <var ignore>A</var> is [=i32=], or [=u32=]<br>
+        <var ignore>CF</var> depends on the storage texel format |F|.
+        [See the texel format table](#storage-texel-formats) for the mapping of texel
+        format to channel format.
+        <td>";
+
+        Parametrization::parse(str).report(str);
+
         let str = r#"<tr algorithm="textureSampleLevel 2d array">
     <td><var ignore>A</var> is [=i32=], or [=u32=]<br>
     <var ignore>X</var> is [=i32=] or [=u32=]
@@ -207,6 +224,6 @@ mod tests {
                             coords: vec2<f32>,
                             array_index: A,
                             level: f32) -> vec4<f32></xmp>"#;
-        assert!(OverloadRow::parse(str).is_ok());
+        OverloadRow::parse(str).report(str);
     }
 }
