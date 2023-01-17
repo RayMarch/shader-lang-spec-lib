@@ -57,20 +57,50 @@ impl Ty {
     }
 }
 
-#[test]
-fn test_ty() {
-    let ty = make_ty!(f32);
-    assert_eq!(Ty::parse("f32"), Ok(("", ty)));
+mod tests {
+    use super::*;
+    #[test]
+    fn test_ident() {
+        macro_rules! ok {
+            ($s: literal) => {
+                assert_eq!(Ident::parse($s), Ok(("", $s.into())))
+            };
+        }
+        macro_rules! fail {
+            ($s: literal) => {
+                assert!(Ident::parse($s).is_err())
+            };
+        }
+        ok!("f32");
+        ok!("_1");
+        ok!("a_582_");
+        ok!("_582_");
+        ok!("yeet");
+        fail!("1");
+        fail!("");
+        fail!("4_");
+        fail!("123");
+        fail!("<f32>");
+        fail!("$");
+        fail!("\n");
+        fail!(" ");
+    }
 
-    let ty = make_ty!(vec4<f32>);
-    assert_eq!(Ty::parse("vec4<f32>"), Ok(("", ty)));
+    #[test]
+    fn test_ty() {
+        let ty = make_ty!(f32);
+        assert_eq!(Ty::parse("f32"), Ok(("", ty)));
 
-    let ty = make_ty!(vec4<A, B, C, D>);
-    assert_eq!(Ty::parse("vec4<A, B, C, D>"), Ok(("", ty)));
+        let ty = make_ty!(vec4<f32>);
+        assert_eq!(Ty::parse("vec4<f32>"), Ok(("", ty)));
 
-    let ty = make_ty!(vec4<A, B, C, D>);
-    assert_eq!(Ty::parse("vec4  < A,B, C, D  >"), Ok(("", ty)));
+        let ty = make_ty!(vec4<A, B, C, D>);
+        assert_eq!(Ty::parse("vec4<A, B, C, D>"), Ok(("", ty)));
 
-    let ty = make_ty!(vec4<make_ty!(vec3<f32>),>);
-    assert_eq!(Ty::parse("vec4<vec3<f32>>"), Ok(("", ty)));
+        let ty = make_ty!(vec4<A, B, C, D>);
+        assert_eq!(Ty::parse("vec4  < A,B, C, D  >"), Ok(("", ty)));
+
+        let ty = make_ty!(vec4<make_ty!(vec3<f32>),>);
+        assert_eq!(Ty::parse("vec4<vec3<f32>>"), Ok(("", ty)));
+    }
 }
