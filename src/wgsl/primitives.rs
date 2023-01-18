@@ -1,8 +1,24 @@
+use std::fmt::Display;
+
 use crate::nom_prelude::*;
 use derive_deref::{Deref, DerefMut};
 
-#[derive(Debug, Clone, Deref, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Ident(String);
+
+impl Display for Ident {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{}", &self.0)
+    }
+}
+
+impl std::ops::Deref for Ident {
+    type Target = str;
+
+    fn deref(&self) -> &str {
+        &self.0
+    }
+}
 
 impl Ident {
     pub fn parse(s: &str) -> NomResult<&str, Self> {
@@ -13,6 +29,10 @@ impl Ident {
             ))(s)
         };
         map(parser, |x| Ident(x.to_string()))(s)
+    }
+
+    pub fn as_str(&self) -> &str {
+        &self.0
     }
 }
 
@@ -38,6 +58,21 @@ macro_rules! make_ty {
 pub struct Ty {
     pub name: Ident,
     pub params: Vec<Ty>,
+}
+
+impl Display for Ty {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{}", self.name)?;
+        if !self.params.is_empty() {
+            write!(f, "<")?;
+            for (i, ty) in self.params.iter().enumerate() {
+                let comma = if i + 1 != self.params.len() { ", " } else { "" };
+                write!(f, "{ty}{comma}")?;
+            }
+            write!(f, ">")?;
+        }
+        Ok(())
+    }
 }
 
 impl Ty {
@@ -81,6 +116,29 @@ pub struct FnDecl {
     pub name: Ident,
     pub args: Vec<(Ident, Ty)>,
     pub out: Ty,
+}
+
+impl Display for FnDecl {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        writeln!(f, "fn {}(", self.name)?;
+        let indent = "    ";
+        let args_max = self
+            .args
+            .iter()
+            .map(|(i, _)| i.len())
+            .max()
+            .unwrap_or_default();
+        for (i, (arg, ty)) in self.args.iter().enumerate() {
+            let comma = if i + 1 != self.args.len() { "," } else { "" };
+            write!(f, "{indent}{} ", *arg)?;
+            for _ in arg.len()..args_max {
+                write!(f, " ")?;
+            }
+            writeln!(f, ": {ty}{comma}")?;
+        }
+        writeln!(f, ") -> {}", self.out)?;
+        Ok(())
+    }
 }
 
 impl FnDecl {

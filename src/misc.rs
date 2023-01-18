@@ -37,3 +37,13 @@ pub fn up_to_last_two_path_elements(name: &'static str) -> &'static str {
         None => name,
     }
 }
+
+/// replaces every whitespace char or sequence of consecutive whitespace chars with a single space
+pub fn normalize_whitespace(str: &str) -> String {
+    let mut was_ws = false;
+    str.trim()
+        .chars()
+        .filter(|c| !(was_ws && c.is_whitespace(), was_ws = c.is_whitespace()).0)
+        .map(|x| if x.is_whitespace() { ' ' } else { x })
+        .collect()
+}
