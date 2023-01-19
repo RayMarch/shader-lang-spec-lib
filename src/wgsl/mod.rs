@@ -1,10 +1,11 @@
 use crate::nom_prelude::*;
 use std::error::Error;
 
-use self::{parametrization::OverloadRow, primitives::FnDecl};
+use self::{fn_decl::FnDecl, overload_row::OverloadRow};
 
-pub mod parametrization;
-pub mod primitives;
+pub mod edit;
+pub mod fn_decl;
+pub mod overload_row;
 
 pub struct WgslSpec {
     pub text: String,

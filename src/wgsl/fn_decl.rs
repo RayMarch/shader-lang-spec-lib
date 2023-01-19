@@ -3,6 +3,8 @@ use std::fmt::Display;
 use crate::nom_prelude::*;
 use derive_deref::{Deref, DerefMut};
 
+use super::overload_row::*;
+
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Ident(String);
 
@@ -28,7 +30,7 @@ impl Ident {
                 many0(alt((alphanumeric1, tag("_")))),
             ))(s)
         };
-        map(parser, |x| Ident(x.to_string()))(s)
+        map(parser, |x| x.into())(s)
     }
 
     pub fn as_str(&self) -> &str {
@@ -75,6 +77,15 @@ impl Display for Ty {
     }
 }
 
+impl From<Ident> for Ty {
+    fn from(name: Ident) -> Self {
+        Ty {
+            name,
+            params: [].into(),
+        }
+    }
+}
+
 impl Ty {
     pub fn parse(s: &str) -> NomResult<&str, Ty> {
         let parser = tuple((
@@ -89,6 +100,22 @@ impl Ty {
             name,
             params: params.unwrap_or_default(),
         })(s)
+    }
+
+    /// traverse the type and its type params, and transitive type params to find `t`
+    pub fn find_mut(&mut self, t: &Ty) -> Option<&mut Ty> {
+        match self == t {
+            true => Some(self),
+            _ => self.params.iter_mut().find_map(|p| p.find_mut(t)),
+        }
+    }
+
+    /// traverse the type and its type params, and transitive type params to find `t`
+    pub fn find(&self, t: &Ty) -> Option<&Ty> {
+        match self == t {
+            true => Some(self),
+            _ => self.params.iter().find_map(|p| p.find(t)),
+        }
     }
 
     /// turns `None` to `void`, `Some(ty)` to `ty`
@@ -145,7 +172,7 @@ impl FnDecl {
     pub fn parse(s: &str) -> NomResult<&str, Self> {
         let parser = tuple((
             preceded(ws0_then(tag("fn")), ws1_then(Ident::parse)),
-            ws0_then(delimited(
+            cut(ws0_then(delimited(
                 ws0_then(tag("(")),
                 ws0_then(separated_list0(
                     ws0_then(tag(",")),
@@ -156,7 +183,7 @@ impl FnDecl {
                     ),
                 )),
                 ws0_then(tag(")")),
-            )),
+            ))),
             map(
                 opt(preceded(ws0_then(tag("->")), ws0_then(Ty::parse))),
                 Ty::flatten,

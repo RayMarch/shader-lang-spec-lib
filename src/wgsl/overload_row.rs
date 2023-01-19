@@ -6,7 +6,7 @@ use nom::{
     multi::{many1, many_till},
 };
 
-use super::primitives::*;
+use super::fn_decl::*;
 use crate::{fn_name, misc::normalize_whitespace, nom_prelude::*};
 
 pub fn parse_generic_arg(s: &str) -> NomResult<&str, Ident> {
@@ -46,7 +46,7 @@ pub fn parse_trait_name(s: &str) -> NomResult<&str, String> {
     )(s)
 }
 
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, Deref)]
 pub struct UnionBound {
     is_one_of: Vec<Ty>,
 }
@@ -124,8 +124,8 @@ impl Display for BoundKind {
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Bound {
-    type_param: Ident,
-    bound_kind: BoundKind,
+    pub type_param: Ident,
+    pub bound_kind: BoundKind,
 }
 
 impl Display for Bound {
@@ -167,7 +167,7 @@ impl Bound {
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Deref)]
-pub struct Parametrization(Vec<Bound>);
+pub struct Parametrization(pub Vec<Bound>);
 
 impl Parametrization {
     pub fn parse(s: &str) -> NomResult<&str, Self> {
