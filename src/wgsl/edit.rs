@@ -1,6 +1,6 @@
 use lazy_static::__Deref;
 
-use super::{fn_decl::*, overload_row::*};
+use super::{fn_decl::*, overload_row::*, ty::*};
 
 pub struct TypeParamNotFound;
 

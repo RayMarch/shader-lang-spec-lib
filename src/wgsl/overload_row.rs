@@ -6,7 +6,7 @@ use nom::{
     multi::{many1, many_till},
 };
 
-use super::fn_decl::*;
+use super::{fn_decl::*, ty::Ty};
 use crate::{fn_name, misc::normalize_whitespace, nom_prelude::*};
 
 pub fn parse_generic_arg(s: &str) -> NomResult<&str, Ident> {
@@ -235,6 +235,7 @@ impl Display for OverloadRow {
     }
 }
 
+#[cfg(test)]
 mod tests {
     use super::*;
 

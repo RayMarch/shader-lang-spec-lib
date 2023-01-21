@@ -9,19 +9,38 @@ fn main() -> Result<(), Box<dyn Error>> {
     let wgsl_spec = wgsl::WgslSpec::from_download()?;
 
     /// iterate over all overload table rows in the document
-    for (i, f) in wgsl_spec.overloads.iter().enumerate() {
-        //println!("{i}: {}", f);
+    let mut names = HashSet::new();
+
+    for (i, f) in wgsl_spec.fns.iter().enumerate() {
+        match f.out.kind {
+            wgsl::ty::TyKind::Texture(_) => {
+                names.insert(f.out.to_string());
+            }
+            _ => (),
+        }
+
+        for (_, ty) in &f.args {
+            match ty.kind {
+                wgsl::ty::TyKind::Texture(_) => {
+                    names.insert(ty.to_string());
+                }
+                _ => (),
+            }
+        }
     }
 
-    let inst = wgsl_spec
-        .overloads
-        .iter()
-        .find(|x| x.fn_decl.name.as_str() == "textureDimensions")
-        .unwrap()
-        .instantiate_bounds_if_possible();
-    for (i, f) in inst.iter().enumerate() {
-        println!("{i}: {}", f);
-    }
+    println!("{:#?}", names);
+
+    // // textureDimensions is not instantiated correctly yet
+    // let inst = wgsl_spec
+    //     .overloads
+    //     .iter()
+    //     .find(|x| x.fn_decl.name.as_str() == "textureDimensions")
+    //     .unwrap()
+    //     .instantiate_bounds_if_possible();
+    // for (i, f) in inst.iter().enumerate() {
+    //     println!("{i}: {}", f);
+    // }
 
     Ok(())
 }

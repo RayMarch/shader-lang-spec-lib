@@ -2,7 +2,8 @@ pub use nom;
 pub use nom::branch::alt;
 pub use nom::bytes::complete::take_till;
 use nom::bytes::complete::take_until;
-pub use nom::bytes::complete::{tag, take_while, take_while1};
+pub use nom::bytes::complete::{take_while, take_while1};
+pub use nom::character::complete::char;
 pub use nom::character::complete::{alpha1, alphanumeric1, digit1, newline};
 pub use nom::combinator::cut;
 pub use nom::combinator::eof;
@@ -23,6 +24,10 @@ pub use nom::{combinator::recognize, multi::many0_count, sequence::pair};
 pub type NomError<I> = nom::error::VerboseError<I>;
 
 pub type NomResult<I, O, E = NomError<I>> = Result<(I, O), Err<E>>;
+
+pub fn tag<'a>(tag_str: &'a str) -> impl Fn(&'a str) -> NomResult<&'a str, &'a str> {
+    nom::bytes::complete::tag(tag_str)
+}
 
 pub fn identifier(input: &str) -> NomResult<&str, &str> {
     recognize(pair(
@@ -175,6 +180,7 @@ where
     }
 }
 
+#[cfg(test)]
 mod tests {
     use super::*;
 

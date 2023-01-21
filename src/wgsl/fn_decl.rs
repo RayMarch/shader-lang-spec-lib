@@ -1,9 +1,11 @@
+use crate::make_ty;
 use std::fmt::Display;
 
 use crate::nom_prelude::*;
 use derive_deref::{Deref, DerefMut};
 
 use super::overload_row::*;
+use super::ty::*;
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Ident(String);
@@ -41,86 +43,6 @@ impl Ident {
 impl From<&str> for Ident {
     fn from(value: &str) -> Self {
         Ident(value.to_string())
-    }
-}
-
-macro_rules! make_ty {
-    ($name: ident) => {
-        Ty { name: stringify!($name).into(), params: vec![], }
-    };
-    ($name: ident <$($param: ident),*>) => {
-        Ty { name: stringify!($name).into(), params: vec![$(make_ty!($param)),*],}
-    };
-    ($name: ident <$($ty: expr,)*>) => {
-        Ty { name: stringify!($name).into(), params: vec![$($ty),*],}
-    };
-}
-
-#[derive(Debug, Clone, PartialEq, Eq)]
-pub struct Ty {
-    pub name: Ident,
-    pub params: Vec<Ty>,
-}
-
-impl Display for Ty {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "{}", self.name)?;
-        if !self.params.is_empty() {
-            write!(f, "<")?;
-            for (i, ty) in self.params.iter().enumerate() {
-                let comma = if i + 1 != self.params.len() { ", " } else { "" };
-                write!(f, "{ty}{comma}")?;
-            }
-            write!(f, ">")?;
-        }
-        Ok(())
-    }
-}
-
-impl From<Ident> for Ty {
-    fn from(name: Ident) -> Self {
-        Ty {
-            name,
-            params: [].into(),
-        }
-    }
-}
-
-impl Ty {
-    pub fn parse(s: &str) -> NomResult<&str, Ty> {
-        let parser = tuple((
-            Ident::parse,
-            opt(delimited(
-                ws0_then(tag("<")),
-                ws0_then(separated_list0(ws0_then(tag(",")), ws0_then(Ty::parse))),
-                ws0_then(tag(">")),
-            )),
-        ));
-        map(parser, |(name, params)| Ty {
-            name,
-            params: params.unwrap_or_default(),
-        })(s)
-    }
-
-    /// traverse the type and its type params, and transitive type params to find `t`
-    pub fn find_mut(&mut self, t: &Ty) -> Option<&mut Ty> {
-        match self == t {
-            true => Some(self),
-            _ => self.params.iter_mut().find_map(|p| p.find_mut(t)),
-        }
-    }
-
-    /// traverse the type and its type params, and transitive type params to find `t`
-    pub fn find(&self, t: &Ty) -> Option<&Ty> {
-        match self == t {
-            true => Some(self),
-            _ => self.params.iter().find_map(|p| p.find(t)),
-        }
-    }
-
-    /// turns `None` to `void`, `Some(ty)` to `ty`
-    pub fn flatten(ty: Option<Ty>) -> Ty {
-        ty.unwrap_or(make_ty!(void))
     }
 }
 
@@ -194,6 +116,7 @@ impl FnDecl {
     }
 }
 
+#[cfg(test)]
 mod tests {
     use super::*;
     #[test]
@@ -221,24 +144,6 @@ mod tests {
         fail!("$");
         fail!("\n");
         fail!(" ");
-    }
-
-    #[test]
-    fn test_ty() {
-        let ty = make_ty!(f32);
-        assert_eq!(Ty::parse("f32"), Ok(("", ty)));
-
-        let ty = make_ty!(vec4<f32>);
-        assert_eq!(Ty::parse("vec4<f32>"), Ok(("", ty)));
-
-        let ty = make_ty!(vec4<A, B, C, D>);
-        assert_eq!(Ty::parse("vec4<A, B, C, D>"), Ok(("", ty)));
-
-        let ty = make_ty!(vec4<A, B, C, D>);
-        assert_eq!(Ty::parse("vec4  < A,B, C, D  >"), Ok(("", ty)));
-
-        let ty = make_ty!(vec4<make_ty!(vec3<f32>),>);
-        assert_eq!(Ty::parse("vec4<vec3<f32>>"), Ok(("", ty)));
     }
 
     #[test]

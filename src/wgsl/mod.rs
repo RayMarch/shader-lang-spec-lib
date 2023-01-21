@@ -6,6 +6,8 @@ use self::{fn_decl::FnDecl, overload_row::OverloadRow};
 pub mod edit;
 pub mod fn_decl;
 pub mod overload_row;
+pub mod texture;
+pub mod ty;
 
 pub struct WgslSpec {
     pub text: String,
