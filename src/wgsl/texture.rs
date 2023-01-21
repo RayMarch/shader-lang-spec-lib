@@ -49,13 +49,18 @@ impl TextureName {
 
         let dims = preceded(
             tag("_"),
-            alt((tag("1d"), tag("2d"), tag("3d"), tag("cube"))),
+            alt((
+                tag("1d"),
+                tag("2d"),
+                tag("3d"),
+                tag("cube"),
+                tag("external"),
+            )),
         );
 
         let parser = preceded(
             tag("texture"),
             tuple((
-                opt_attrib("_external"),
                 opt_attrib("_depth"),
                 opt_attrib("_storage"),
                 opt_attrib("_multisampled"),
@@ -64,17 +69,16 @@ impl TextureName {
             )),
         );
 
-        map(
-            parser,
-            |(external, depth, storage, multisampled, dims, array)| TextureName {
+        map(parser, |(depth, storage, multisampled, dims, array)| {
+            TextureName {
                 depth,
                 storage,
                 array,
                 multisampled,
-                external,
-                dimensionality: dims.to_string(),
-            },
-        )(s)
+                external: dims == "external",
+                dimensionality: if dims == "external" { "2d" } else { dims }.to_string(),
+            }
+        })(s)
     }
 }
 
@@ -84,7 +88,7 @@ impl Display for TextureName {
         write!(f, "texture")?;
         if self.depth {write!(f, "_depth")?;}
         if self.storage {write!(f, "_storage")?;}
-        write!(f, "_{}", self.dimensionality)?;
+        if !self.external {write!(f, "_{}", self.dimensionality)?;}
         if self.array {write!(f, "_array")?;}
         if self.external {write!(f, "_external")?;}
         Ok(())
@@ -138,18 +142,11 @@ mod tests {
         };
         ok!(texture_cube);
 
-        // texture_2d
-        // texture_2d_array
-        // texture_cube
-        // texture_cube_array
-        // texture_multisampled_2d
-        // texture_depth_2d
-        // texture_depth_2d_array
-        // texture_depth_cube
-        // texture_depth_cube_array
-        // texture_depth_multisampled_2d
-        // texture_storage_2d
-        // texture_storage_2d_array
-        // texture_external
+        let texture_external = TextureName {
+            dimensionality: "2d".to_string(),
+            external: true,
+            ..rest
+        };
+        ok!(texture_external);
     }
 }

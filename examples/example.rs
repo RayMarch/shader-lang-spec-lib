@@ -11,25 +11,34 @@ fn main() -> Result<(), Box<dyn Error>> {
     /// iterate over all overload table rows in the document
     let mut names = HashSet::new();
 
-    for (i, f) in wgsl_spec.fns.iter().enumerate() {
-        match f.out.kind {
-            wgsl::ty::TyKind::Texture(_) => {
-                names.insert(f.out.to_string());
-            }
-            _ => (),
-        }
+    for (i, row) in wgsl_spec.overloads.iter().enumerate() {
+        let rows = row.instantiate_bounds_if_possible();
+        for row in rows {
+            let f = row.fn_decl;
 
-        for (_, ty) in &f.args {
-            match ty.kind {
+            println!("{f}");
+
+            match f.out.kind {
                 wgsl::ty::TyKind::Texture(_) => {
-                    names.insert(ty.to_string());
+                    names.insert(f.out.to_string());
                 }
                 _ => (),
+            }
+
+            for (_, ty) in &f.args {
+                match ty.kind {
+                    wgsl::ty::TyKind::Texture(_) => {
+                        names.insert(ty.to_string());
+                    }
+                    _ => (),
+                }
             }
         }
     }
 
-    println!("{:#?}", names);
+    let mut vec: Vec<_> = names.iter().collect();
+    vec.sort();
+    println!("{:#?}", vec);
 
     // // textureDimensions is not instantiated correctly yet
     // let inst = wgsl_spec

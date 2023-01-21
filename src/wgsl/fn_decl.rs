@@ -93,7 +93,7 @@ impl Display for FnDecl {
 impl FnDecl {
     pub fn parse(s: &str) -> NomResult<&str, Self> {
         let parser = tuple((
-            preceded(ws0_then(tag("fn")), ws1_then(Ident::parse)),
+            preceded(tag("fn"), ws1_then(Ident::parse)),
             cut(ws0_then(delimited(
                 ws0_then(tag("(")),
                 ws0_then(separated_list0(
