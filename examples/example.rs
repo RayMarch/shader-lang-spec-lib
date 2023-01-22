@@ -3,7 +3,13 @@ extern crate shader_lang_spec_lib;
 use std::{collections::HashSet, error::Error};
 
 use lazy_static::__Deref;
-use shader_lang_spec_lib::*;
+use shader_lang_spec_lib::{
+    wgsl::{
+        overload_row::{Bound, BoundKind, UnionBound},
+        ty::Ty,
+    },
+    *,
+};
 
 fn main() -> Result<(), Box<dyn Error>> {
     let wgsl_spec = wgsl::WgslSpec::from_download()?;
@@ -12,20 +18,40 @@ fn main() -> Result<(), Box<dyn Error>> {
     let mut names = HashSet::new();
 
     for (i, row) in wgsl_spec.overloads.iter().enumerate() {
+        let mut rows = vec![row.clone()];
         let rows = row.instantiate_bounds_if_possible();
-        for row in rows {
-            let f = row.fn_decl;
+        for mut row in rows {
+            //rename some Union bounds
+            row.rename_type_params(|bound| {
+                //println!("BOUND: {bound}");
+                match &bound.bound_kind {
+                    BoundKind::Union(x) => match &x[..] {
+                        [a, b] => {
+                            //println!("IU: {:?}", [a, b]);
+                            let is_iuf32 =
+                                [a, b] == [&Ty::try_from_str("i32")?, &Ty::try_from_str("u32")?];
+                            return Some(Ty::try_from_str("iu32")?);
+                        }
+                        [a, b, c] => {
+                            let is_iuf32 = [a, b, c]
+                                == [
+                                    &Ty::try_from_str("i32")?,
+                                    &Ty::try_from_str("u32")?,
+                                    &Ty::try_from_str("f32")?,
+                                ];
+                            return Some(Ty::try_from_str("iuf32")?);
+                        }
+                        _ => {}
+                    },
+                    _ => (),
+                }
+                None
+            });
 
+            let f = row.fn_decl;
             println!("{f}");
 
-            match f.out.kind {
-                wgsl::ty::TyKind::Texture(_) => {
-                    names.insert(f.out.to_string());
-                }
-                _ => (),
-            }
-
-            for (_, ty) in &f.args {
+            for ty in f.tys_mentioned() {
                 match ty.kind {
                     wgsl::ty::TyKind::Texture(_) => {
                         names.insert(ty.to_string());

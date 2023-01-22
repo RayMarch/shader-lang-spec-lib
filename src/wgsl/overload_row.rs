@@ -9,11 +9,11 @@ use nom::{
 use super::{fn_decl::*, ty::Ty};
 use crate::{fn_name, misc::normalize_whitespace, nom_prelude::*};
 
-pub fn parse_generic_arg(s: &str) -> NomResult<&str, Ident> {
+pub fn parse_generic_arg(s: &str) -> NomResult<&str, Ty> {
     let ident = || {
         alt((
-            delimited(tag("|"), cut(ws0_then(Ident::parse)), tag("|")),
-            ws0_then(Ident::parse),
+            delimited(tag("|"), cut(ws0_then(Ty::parse)), tag("|")),
+            ws0_then(Ty::parse),
         ))
     };
 
@@ -84,6 +84,14 @@ impl UnionBound {
             is_one_of,
         })(s)
     }
+
+    pub fn tys_mentioned(&self) -> impl Iterator<Item = &Ty> + Clone {
+        self.is_one_of.iter()
+    }
+
+    pub fn tys_mentioned_mut(&mut self) -> impl Iterator<Item = &mut Ty> {
+        self.is_one_of.iter_mut()
+    }
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -124,7 +132,7 @@ impl Display for BoundKind {
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Bound {
-    pub type_param: Ident,
+    pub type_param: Ty,
     pub bound_kind: BoundKind,
 }
 
@@ -164,6 +172,26 @@ impl Bound {
             }
         })(s)
     }
+
+    pub fn tys_mentioned(&self) -> impl Iterator<Item = &Ty> + Clone {
+        match &self.bound_kind {
+            BoundKind::Union(x) => Some(x.tys_mentioned()),
+            BoundKind::Trait(_) => None,
+            BoundKind::Prose(_) => None,
+        }
+        .into_iter()
+        .flatten()
+    }
+
+    pub fn tys_mentioned_mut(&mut self) -> impl Iterator<Item = &mut Ty> {
+        match &mut self.bound_kind {
+            BoundKind::Union(x) => Some(x.tys_mentioned_mut()),
+            BoundKind::Trait(_) => None,
+            BoundKind::Prose(_) => None,
+        }
+        .into_iter()
+        .flatten()
+    }
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Deref)]
@@ -176,6 +204,14 @@ impl Parametrization {
             many0(ws0_then(tag("<br>"))),
         ));
         map(context(fn_name!(), parser), Parametrization)(s)
+    }
+
+    pub fn tys_mentioned(&self) -> impl Iterator<Item = &Ty> + Clone {
+        self.iter().flat_map(|b| b.tys_mentioned())
+    }
+
+    pub fn tys_mentioned_mut(&mut self) -> impl Iterator<Item = &mut Ty> {
+        self.0.iter_mut().flat_map(|b| b.tys_mentioned_mut())
     }
 }
 
@@ -224,6 +260,34 @@ impl OverloadRow {
                 fn_decl,
             },
         )(s)
+    }
+
+    pub fn tys_mentioned(&self) -> impl Iterator<Item = &Ty> + Clone {
+        self.fn_decl
+            .tys_mentioned()
+            .chain(self.parametrization.tys_mentioned())
+    }
+
+    pub fn tys_mentioned_mut(&mut self) -> impl Iterator<Item = &mut Ty> {
+        self.fn_decl
+            .tys_mentioned_mut()
+            .chain(self.parametrization.tys_mentioned_mut())
+    }
+
+    #[allow(clippy::option_map_unit_fn)]
+    pub fn rename_type_params(&mut self, mut f: impl FnMut(&Bound) -> Option<Ty>) {
+        let len = self.parametrization.len();
+
+        for i in 0..len {
+            let bound = &self.parametrization[i];
+            let before = bound.type_param.clone();
+
+            if let Some(after) = f(bound) {
+                self.tys_mentioned_mut()
+                    .find(|ty| **ty == before)
+                    .map(|ty| *ty = after);
+            }
+        }
     }
 }
 

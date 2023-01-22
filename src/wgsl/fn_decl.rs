@@ -7,7 +7,7 @@ use derive_deref::{Deref, DerefMut};
 use super::overload_row::*;
 use super::ty::*;
 
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub struct Ident(String);
 
 impl Display for Ident {
@@ -113,6 +113,14 @@ impl FnDecl {
         ));
 
         map(parser, |(name, args, out)| FnDecl { name, args, out })(s)
+    }
+
+    pub fn tys_mentioned(&self) -> impl Iterator<Item = &Ty> + Clone {
+        std::iter::once(&self.out).chain(self.args.iter().map(|(_, ty)| ty))
+    }
+
+    pub fn tys_mentioned_mut(&mut self) -> impl Iterator<Item = &mut Ty> {
+        std::iter::once(&mut self.out).chain(self.args.iter_mut().map(|(_, ty)| ty))
     }
 }
 

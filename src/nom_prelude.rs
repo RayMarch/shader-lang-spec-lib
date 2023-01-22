@@ -13,7 +13,7 @@ pub use nom::combinator::opt;
 pub use nom::combinator::peek;
 pub use nom::error::context;
 pub use nom::error::convert_error;
-use nom::error::ParseError;
+use nom::error::{ParseError, VerboseError};
 pub use nom::multi::many0;
 pub use nom::multi::separated_list0;
 pub use nom::multi::separated_list1;
@@ -66,13 +66,13 @@ where
 
 /// debug helper
 pub trait NomReportError {
-    type Input;
+    type Input: std::fmt::Debug;
     type Output;
     fn report(self, input: Self::Input) -> Self;
     fn report_into_string(self, input: Self::Input) -> String;
 }
 
-impl<I: core::ops::Deref<Target = str>, O: std::fmt::Debug> NomReportError
+impl<I: core::ops::Deref<Target = str> + std::fmt::Debug, O: std::fmt::Debug> NomReportError
     for NomResult<I, O, NomError<I>>
 {
     type Input = I;
@@ -113,7 +113,7 @@ impl<I: core::ops::Deref<Target = str>, O: std::fmt::Debug> NomReportError
     }
 }
 
-impl<I: core::ops::Deref<Target = str>> NomReportError for Err<NomError<I>> {
+impl<I: core::ops::Deref<Target = str> + std::fmt::Debug> NomReportError for Err<VerboseError<I>> {
     type Input = I;
     type Output = Self;
     fn report(self, input: Self::Input) -> Self {
@@ -127,6 +127,26 @@ impl<I: core::ops::Deref<Target = str>> NomReportError for Err<NomError<I>> {
         match self {
             Err::Incomplete(e) => unreachable!(),
             Err::Error(e) | Err::Failure(e) => convert_error(input, e),
+        }
+    }
+}
+
+impl<I: core::ops::Deref<Target = str> + std::fmt::Debug> NomReportError
+    for Err<nom::error::Error<I>>
+{
+    type Input = I;
+    type Output = Self;
+    fn report(self, input: Self::Input) -> Self {
+        let text = match self {
+            Err::Incomplete(e) => unreachable!(),
+            Err::Error(e) | Err::Failure(e) => format!("{e:?}"),
+        };
+        panic!("{text}")
+    }
+    fn report_into_string(self, input: Self::Input) -> String {
+        match self {
+            Err::Incomplete(e) => unreachable!(),
+            Err::Error(e) | Err::Failure(e) => format!("{e:?}"),
         }
     }
 }

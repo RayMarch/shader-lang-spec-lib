@@ -20,7 +20,7 @@ macro_rules! make_ty {
     };
 }
 
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub enum TyKind {
     /// return type of a function that returns nothing
     Void,
@@ -61,7 +61,7 @@ impl TyKind {
     }
 }
 
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub struct Ty {
     /// part before the angle brackets, if there are any
     pub kind: TyKind,
@@ -75,6 +75,10 @@ impl Ty {
             TyKind::parse(name.as_str()).expect("infallible because of `Ident` variant fallback");
         assert!(s.is_empty());
         Ty { kind, params }
+    }
+
+    pub fn try_from_str(s: &str) -> Option<Self> {
+        Self::parse(s).ok().map(|(_, t)| t)
     }
 
     pub fn parse(s: &str) -> NomResult<&str, Ty> {

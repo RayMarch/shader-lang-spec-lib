@@ -8,14 +8,14 @@ impl UnionBound {
     /// returns Err(()) if `param` is not mentioned in `f`
     pub fn instantiate_type_param(
         &self,
-        param: &Ident,
+        param: &Ty,
         f: &FnDecl,
     ) -> Result<Vec<FnDecl>, TypeParamNotFound> {
-        let t: Ty = param.clone().into();
+        let t: &Ty = param;
 
         let mut contains_param = false;
-        contains_param |= f.args.iter().any(|(_, arg)| arg.find(&t).is_some());
-        contains_param |= f.out.find(&t).is_some();
+        contains_param |= f.args.iter().any(|(_, arg)| arg.find(t).is_some());
+        contains_param |= f.out.find(t).is_some();
 
         let true = contains_param else {Err(TypeParamNotFound)?};
 
@@ -24,9 +24,9 @@ impl UnionBound {
             let replace = |ty: &mut Ty| *ty = variant.clone();
             f.args
                 .iter_mut()
-                .filter_map(|(_, ty)| ty.find_mut(&t))
+                .filter_map(|(_, ty)| ty.find_mut(t))
                 .for_each(replace);
-            f.out.find_mut(&t).map(replace);
+            f.out.find_mut(t).map(replace);
             f
         });
         Ok(instances.collect())
@@ -35,7 +35,7 @@ impl UnionBound {
     /// tries to apply the bound to as many elements of `fs` as possible.
     ///
     /// collects all function instantiations in a new vec
-    pub fn instantiate_type_param_multi(&self, param: &Ident, fs: &[FnDecl]) -> Vec<FnDecl> {
+    pub fn instantiate_type_param_multi(&self, param: &Ty, fs: &[FnDecl]) -> Vec<FnDecl> {
         fs.iter()
             .flat_map(|f| match self.instantiate_type_param(param, f) {
                 Ok(instances) => instances,
