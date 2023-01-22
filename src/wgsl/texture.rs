@@ -9,40 +9,24 @@ struct Sampler {
     comparision: bool,
 }
 
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub struct TextureName {
     /// name contains "depth"
     depth: bool,
     /// name contains "storage"
     storage: bool,
-    /// name contains "array"
-    array: bool,
     /// name contains "multisampled"
     multisampled: bool,
-    /// name contains "external"
-    external: bool,
     /// dimensionality: "1d", "2d", "3d", or "cube"
     dimensionality: String,
+    /// name contains "external"
+    external: bool,
+    /// name contains "array"
+    array: bool,
 }
 
 impl TextureName {
     pub fn parse(s: &str) -> NomResult<&str, TextureName> {
-        // texture_2d<ST>
-        // texture_2d_array<ST>
-        // texture_cube<ST>
-        // texture_cube_array<ST>
-        // texture_multisampled_2d<ST>
-        // texture_depth_2d
-        // texture_depth_2d_array
-        // texture_depth_cube
-        // texture_depth_cube_array
-        // texture_depth_multisampled_2d
-        // texture_storage_2d<F,A>
-        // texture_storage_2d_array<F,A>
-        // texture_external
-
-        // external > depth > storage > ms > dim > array
-
         fn opt_attrib<'a>(att: &'a str) -> impl FnMut(&'a str) -> NomResult<&'a str, bool> {
             map(opt(tag(att)), |x| x.is_some())
         }
@@ -54,7 +38,7 @@ impl TextureName {
                 tag("2d"),
                 tag("3d"),
                 tag("cube"),
-                tag("external"),
+                tag("external"), //external implies 2d
             )),
         );
 
@@ -88,9 +72,12 @@ impl Display for TextureName {
         write!(f, "texture")?;
         if self.depth {write!(f, "_depth")?;}
         if self.storage {write!(f, "_storage")?;}
-        if !self.external {write!(f, "_{}", self.dimensionality)?;}
+        if self.multisampled {write!(f, "_multisampled")?;}
+        match self.external {
+            true => write!(f, "_external")?,
+            false => write!(f, "_{}", self.dimensionality)?,
+        }
         if self.array {write!(f, "_array")?;}
-        if self.external {write!(f, "_external")?;}
         Ok(())
     }
 }
@@ -111,42 +98,48 @@ mod tests {
         };
 
         macro_rules! ok {
-            ($s: ident) => {
-                assert_eq!(TextureName::parse(std::stringify!($s)), Ok(("", $s)))
+            (let $s: ident = $e: expr $(;)?) => {
+                assert_eq!(TextureName::parse(std::stringify!($s)), Ok(("", $e)))
             };
         }
         macro_rules! fail {
-            ($s: literal) => {
-                assert!(Ident::parse($s).is_err())
+            ($s: ident) => {
+                assert!(TextureName::parse(std::stringify!($s)).is_err())
             };
         }
+        ok!(
+            let texture_2d_array = TextureName {
+                array: true,
+                dimensionality: "2d".to_string(),
+                ..rest
+            }
+        );
 
-        let texture_2d_array = TextureName {
-            array: true,
-            dimensionality: "2d".to_string(),
-            ..rest
-        };
-        ok!(texture_2d_array);
+        ok!(
+            let texture_depth_2d_array = TextureName {
+                array: true,
+                depth: true,
+                dimensionality: "2d".to_string(),
+                ..rest
+            };
+        );
 
-        let texture_depth_2d_array = TextureName {
-            array: true,
-            depth: true,
-            dimensionality: "2d".to_string(),
-            ..rest
-        };
-        ok!(texture_depth_2d_array);
+        ok!(
+            let texture_cube = TextureName {
+                dimensionality: "cube".to_string(),
+                ..rest
+            };
+        );
 
-        let texture_cube = TextureName {
-            dimensionality: "cube".to_string(),
-            ..rest
-        };
-        ok!(texture_cube);
-
-        let texture_external = TextureName {
-            dimensionality: "2d".to_string(),
-            external: true,
-            ..rest
-        };
-        ok!(texture_external);
+        ok!(
+            let texture_external = TextureName {
+                dimensionality: "2d".to_string(),
+                external: true,
+                ..rest
+            };
+        );
+        fail!(texture_depth_storage_depth);
+        fail!(depth_storage_depth);
+        fail!(texture_x_2d_array);
     }
 }
